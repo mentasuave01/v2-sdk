@@ -23,34 +23,37 @@ import { InsufficientReservesError, InsufficientInputAmountError } from '../erro
 export const computePairAddress = ({
   factoryAddress,
   tokenA,
-  tokenB
+  tokenB,
+  initHashCode,
 }: {
   factoryAddress: string
   tokenA: Token
-  tokenB: Token
+  tokenB: Token,
+  initHashCode?: string,
 }): string => {
   const [token0, token1] = tokenA.sortsBefore(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA] // does safety checks
+  initHashCode = initHashCode ?? INIT_CODE_HASH;
   return getCreate2Address(
     factoryAddress,
     keccak256(['bytes'], [pack(['address', 'address'], [token0.address, token1.address])]),
-    INIT_CODE_HASH
+    initHashCode
   )
 }
 export class Pair {
   public readonly liquidityToken: Token
   private readonly tokenAmounts: [CurrencyAmount<Token>, CurrencyAmount<Token>]
 
-  public static getAddress(tokenA: Token, tokenB: Token): string {
-    return computePairAddress({ factoryAddress: FACTORY_ADDRESS, tokenA, tokenB })
+  public static getAddress(tokenA: Token, tokenB: Token, factoryAddress: string = FACTORY_ADDRESS, initHashCode: string = INIT_CODE_HASH): string {
+    return computePairAddress({ factoryAddress, tokenA, tokenB, initHashCode });
   }
 
-  public constructor(currencyAmountA: CurrencyAmount<Token>, tokenAmountB: CurrencyAmount<Token>) {
+  public constructor(currencyAmountA: CurrencyAmount<Token>, tokenAmountB: CurrencyAmount<Token>, factoryAddress: string = FACTORY_ADDRESS, initHashCode: string = INIT_CODE_HASH) {
     const tokenAmounts = currencyAmountA.currency.sortsBefore(tokenAmountB.currency) // does safety checks
       ? [currencyAmountA, tokenAmountB]
       : [tokenAmountB, currencyAmountA]
     this.liquidityToken = new Token(
       tokenAmounts[0].currency.chainId,
-      Pair.getAddress(tokenAmounts[0].currency, tokenAmounts[1].currency),
+      Pair.getAddress(tokenAmounts[0].currency, tokenAmounts[1].currency, factoryAddress, initHashCode),
       18,
       'UNI-V2',
       'Uniswap V2'
